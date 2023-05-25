@@ -30,23 +30,14 @@ minDessert = cheapestPrices[2];
 
 for (int i = 0; i < 4; i++)
 {
-    var threeProducts = true;
-    var toFill = 100;
-    switch (i)
+    var threeProducts = i == 3 ? true : false;
+    var toFill = i switch
     {
-        case 0:
-            toFill = minAppetizer;
-            threeProducts = false;
-            break;
-        case 1:
-            toFill = minMainDish;
-            threeProducts = false;
-            break;
-        case 2:
-            toFill = minDessert;
-            threeProducts = false;
-            break;
-    }
+        0 => minAppetizer,
+        1 => minMainDish,
+        2 => minDessert,
+        _ => -1,
+    };
     foreach (var pathFile in pathFiles)
     {
 
@@ -155,7 +146,7 @@ void Get2ProductsOneRestaurant(string[] lines,
         switch (kindOfDishNotChanged)
         {
             case 0:
-                cheapestDishes[1] = dishes[1];
+                cheapestDishes[1] = dishes[1]; 
                 cheapestDishes[2] = dishes[2];
                 cheapestRestaurants[1] = restaurants[1];
                 cheapestRestaurants[2] = restaurants[2];
