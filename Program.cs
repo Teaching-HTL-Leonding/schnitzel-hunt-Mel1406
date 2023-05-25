@@ -1,99 +1,183 @@
 ﻿#region var
-string[] pathFiles = Directory.GetFiles("C:\\Users\\mebau\\OneDrive\\HTL\\Programming\\Project_063_SchnitzelHunt\\MenuCards");
-string[] restaurants = new string[3];
-string[] dishes = new string[3];
-int[] prices = new int[3];
-string searchText = "Schnitzel";
+var pathFiles = Directory.GetFiles("C:\\Users\\mebau\\OneDrive\\HTL\\Programming\\Project_063_SchnitzelHunt\\MenuCards");
+var cheapestRestaurants = new string[3];
+var cheapestDishes = new string[3];
+var cheapestPrices = new int[3] {int.MaxValue, int.MaxValue, int.MaxValue};
+var searchText = "Schnitzel";
+var minAppetizer = 0;
+var minMainDish = 0;
+var minDessert = 0;
+var priceToDrive = 7;
+int maxValue = 100;
 #endregion
 
 #region program
 Console.OutputEncoding = System.Text.Encoding.Default;
-GetSearchOption(out bool cheap, prices);
-foreach(string pathFile in pathFiles)
+foreach (string pathFile in pathFiles)
 {
     var lines = File.ReadAllLines(pathFile);
-    FindSchnitzel(lines, 
-                  searchText, 
+    FindSchnitzel(lines,
+                  searchText,
                   pathFile,
-                  cheap, 
-                  ref prices, 
-                  ref restaurants,
-                  ref dishes);
+                  ref cheapestPrices,
+                  ref cheapestRestaurants,
+                  ref cheapestDishes);
 }
-Console.WriteLine($"Appetizers: {restaurants[0]}, {dishes[0]} {prices[0]}€");
-Console.WriteLine($"Main Dishes: {restaurants[1]}, {dishes[1]} {prices[1]}€");
-Console.WriteLine($"Dessert: {restaurants[2]}, {dishes[2]} {prices[2]}€");
+var maxSum = cheapestPrices.Sum() + 2 * priceToDrive;
+minAppetizer = cheapestPrices[0];
+minMainDish = cheapestPrices[1];
+minDessert = cheapestPrices[2];
+
+for (int i = 0; i < 4; i++)
+{
+    var threeProducts = true;
+    var toFill = 100;
+    switch (i)
+    {
+        case 0:
+            toFill = minAppetizer;
+            threeProducts = false;
+            break;
+        case 1:
+            toFill = minMainDish;
+            threeProducts = false;
+            break;
+        case 2:
+            toFill = minDessert;
+            threeProducts = false;
+            break;
+    }
+    foreach (var pathFile in pathFiles)
+    {
+
+        var lines = File.ReadAllLines(pathFile);
+        var prices = new int[3] { maxValue, maxValue, maxValue };
+        var restaurants = new string[3];
+        var dishes = new string[3];
+        Get2ProductsOneRestaurant(lines,
+                                  searchText,
+                                  pathFile,
+                                  ref prices,
+                                  ref restaurants,
+                                  ref dishes,
+                                  ref maxSum,
+                                  i,
+                                  toFill,
+                                  ref cheapestPrices,
+                                  ref cheapestRestaurants,
+                                  ref cheapestDishes,
+                                  threeProducts);
+    }
+}
+Console.WriteLine($"Appetizers: {cheapestRestaurants[0]}, {cheapestDishes[0]} {cheapestPrices[0]}€");
+Console.WriteLine($"Main Dishes: {cheapestRestaurants[1]}, {cheapestDishes[1]} {cheapestPrices[1]}€");
+Console.WriteLine($"Dessert: {cheapestRestaurants[2]}, {cheapestDishes[2]} {cheapestPrices[2]}€");
 #endregion
 
 #region methods
-void FindSchnitzel(string[] lines, 
+void FindSchnitzel(string[] lines,
                    string searchText,
-                   string pathFile,  
-                   bool cheap, 
+                   string pathFile,
                    ref int[] prices,
                    ref string[] restaurants,
                    ref string[] dishes)
 {
-    string currentKindOfDish = "";
-    foreach(string line in lines)
+    var currentKindOfDish = 0;
+    foreach (var line in lines)
     {
-        currentKindOfDish = line switch{
-            "APPETIZERS" => "a",
-            "MAIN DISHES" => "m",
-            "DESSERTS" => "d",
+        currentKindOfDish = line switch
+        {
+            "APPETIZERS" => 0,
+            "MAIN DISHES" => 1,
+            "DESSERTS" => 2,
             _ => currentKindOfDish,
         };
-        if(line.Contains(searchText, StringComparison.CurrentCultureIgnoreCase))
+        if (line.Contains(searchText, StringComparison.CurrentCultureIgnoreCase)
+            && GetDishPrice(line) < prices[currentKindOfDish])
         {
-            int price = GetDishPrice(line);
-            if ((cheap && price < prices[0] || !cheap && price > prices[0]) && currentKindOfDish == "a")
-            {
-                restaurants[0] = Path.GetFileNameWithoutExtension(pathFile);
-                prices[0] = price;
-                dishes[0] = GetDishName(line);
-            }
-            else if ((cheap && price < prices[1] || !cheap && price > prices[1]) && currentKindOfDish == "m")
-            {
-                restaurants[1] = Path.GetFileNameWithoutExtension(pathFile);
-                prices[1] = price;
-                dishes[1] = GetDishName(line);
-            }
-            else if ((cheap && price < prices[2] || !cheap && price > prices[2]) && currentKindOfDish == "d")
-            {
-                restaurants[2] = Path.GetFileNameWithoutExtension(pathFile);
-                prices[2] = price;
-                dishes[2] = GetDishName(line);
-            }
+            restaurants[currentKindOfDish] = Path.GetFileNameWithoutExtension(pathFile);
+            prices[currentKindOfDish] = GetDishPrice(line);
+            dishes[currentKindOfDish] = GetDishName(line);
         }
     }
 }
 int GetDishPrice(string line)
 {
-    int index = line.IndexOf(":");
-    int index2 = line.IndexOf("€");
-    return int.Parse(line.Substring(index + 2, index2 - index - 2));
+    var index = line.IndexOf(":");
+    return int.Parse(line[(index + 2)..^1]);
 }
 string GetDishName(string line)
 {
-    int index = line.IndexOf(":");
-    return line.Substring(0, index);
+    var index = line.IndexOf(":");
+    return line[0..index];
 }
-void GetSearchOption(out bool cheap, int[] prices)
+void Get2ProductsOneRestaurant(string[] lines,
+                   string searchText,
+                   string pathFile,
+                   ref int[] prices,
+                   ref string[] restaurants,
+                   ref string[] dishes,
+                   ref int maxSum,
+                   int kindOfDishNotChanged,
+                   int toFill,
+                   ref int[] cheapestPrices,
+                   ref string[] cheapestRestaurants,
+                   ref string[] CheapestDishes,
+                   bool threeProducts)
 {
-    Console.WriteLine("Please enter if you want to most expensive or the cheapest dishes.");
-    string input = Console.ReadLine()!;
-    cheap = input.Contains("cheap", StringComparison.CurrentCultureIgnoreCase);
-    if(cheap)
+    var currentKindOfDish = 0;
+    if (kindOfDishNotChanged != 3)
     {
-        prices[0] = int.MaxValue;
-        prices[1] = int.MaxValue; 
-        prices[2] = int.MaxValue;
+        prices[kindOfDishNotChanged] = toFill;
     }
-    else
+    foreach (var line in lines)
     {
-        prices[0] = int.MinValue;
-        prices[1] = int.MinValue; 
-        prices[2] = int.MinValue;
+        currentKindOfDish = line switch
+        {
+            "APPETIZERS" => 0,
+            "MAIN DISHES" => 1,
+            "DESSERTS" => 2,
+            _ => currentKindOfDish,
+        };
+        if (line.Contains(searchText, StringComparison.CurrentCultureIgnoreCase) 
+            && (threeProducts ? true : currentKindOfDish != kindOfDishNotChanged)
+            && GetDishPrice(line) < prices[currentKindOfDish])
+        {
+            restaurants[currentKindOfDish] = Path.GetFileNameWithoutExtension(pathFile);
+            prices[currentKindOfDish] = GetDishPrice(line);
+            dishes[currentKindOfDish] = GetDishName(line);
+        }
+    }
+    if (prices.Sum() + (threeProducts ? 0 : priceToDrive) < maxSum 
+        && prices[0] != maxValue && prices[1] != maxValue && prices[2] != maxValue)
+    {
+        maxSum = prices.Sum() + (threeProducts ? 0 : priceToDrive);
+        switch (kindOfDishNotChanged)
+        {
+            case 0:
+                cheapestDishes[1] = dishes[1];
+                cheapestDishes[2] = dishes[2];
+                cheapestRestaurants[1] = restaurants[1];
+                cheapestRestaurants[2] = restaurants[2];
+                break;
+            case 1:
+                cheapestDishes[0] = dishes[0];
+                cheapestDishes[2] = dishes[2];
+                cheapestRestaurants[0] = restaurants[0];
+                cheapestRestaurants[2] = restaurants[2];
+                break;
+            case 2:
+                cheapestDishes[0] = dishes[0];
+                cheapestDishes[1] = dishes[1];
+                cheapestRestaurants[0] = restaurants[0];
+                cheapestRestaurants[1] = restaurants[1];
+                break;
+            default:
+                cheapestDishes = dishes;
+                cheapestRestaurants = restaurants;
+                break;
+        }
+        cheapestPrices = prices;
     }
 }
 #endregion
